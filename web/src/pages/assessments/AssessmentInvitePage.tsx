@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { assessmentsApi } from "@/services/assessments";
 import { LEVEL_LABELS } from "@/utils/constants";
-import { ArrowLeft, Copy, Check, Eye, Pencil, Clock, Plus, UserRound } from "lucide-react";
+import { ArrowLeft, Copy, Check, Eye, Pencil, Clock, Plus, UserRound, CheckCircle2, AlertCircle, XCircle } from "lucide-react";
 import type { Assessment, Session } from "@/types";
 
 function SessionRow({
@@ -33,60 +33,61 @@ function SessionRow({
 }) {
   const navigate = useNavigate();
   const isLive = session.status === "active";
-  const isEnded = session.status === "ended";
   const isPending = session.status === "pending";
+  const isEnded = session.status === "ended";
   const displayName = session.candidate_name || `Candidate ${index}`;
 
+  const StatusBadge = () => {
+    if (isPending) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-amber-400" /> Awaiting
+        </span>
+      );
+    }
+    if (isLive) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 border border-emerald-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live
+        </span>
+      );
+    }
+    if (isEnded && session.end_reason === "error") {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-50 text-red-600 border border-red-200">
+          <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> Failed
+        </span>
+      );
+    }
+    if (isEnded) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-100 text-slate-600 border border-slate-200">
+          Completed
+        </span>
+      );
+    }
+    return null;
+  };
+
   return (
-    <div className="flex items-center justify-between py-3 px-4">
+    <div className="flex items-center justify-between py-3 px-4 hover:bg-slate-50/80 transition-colors rounded-lg">
       <div className="flex items-center gap-3">
         <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-xs font-medium text-muted-foreground">
           {index}
         </div>
-        <div className="space-y-0.5">
-          <div className="text-sm font-medium">{displayName}</div>
+        <div>
+          <p className="text-sm font-medium text-slate-900">{displayName}</p>
           {session.started_at && (
-            <div className="text-xs text-muted-foreground">
-              {new Date(session.started_at).toLocaleDateString()}
-            </div>
+            <p className="text-xs text-slate-500">{new Date(session.started_at).toLocaleDateString()}</p>
           )}
         </div>
       </div>
 
-      <div className="flex items-center gap-3">
-        {isPending && (
-          <span className="flex items-center gap-1 text-xs text-amber-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            Awaiting candidate
-          </span>
-        )}
-        {isLive && (
-          <span className="flex items-center gap-1 text-xs text-primary">
-            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
-            Live
-          </span>
-        )}
-        {isEnded && session.end_reason === "error" && (
-          <span className="flex items-center gap-1 text-xs text-destructive">
-            <span className="w-1.5 h-1.5 rounded-full bg-destructive" />
-            Failed
-          </span>
-        )}
-        {isEnded && session.end_reason !== "error" && (
-          <span className="flex items-center gap-1 text-xs text-green-600">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
-            Completed
-          </span>
-        )}
-
+      <div className="flex items-center gap-2">
+        <StatusBadge />
         <div className="flex items-center gap-1.5">
           {isPending && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => onCopy(session.id)}
-            >
+            <Button variant="ghost" size="sm" className="h-7 px-2 text-xs" onClick={() => onCopy(session.id)}>
               {copiedId === session.id ? (
                 <><Check className="h-3 w-3 mr-1" /> Copied</>
               ) : (
@@ -95,22 +96,12 @@ function SessionRow({
             </Button>
           )}
           {isLive && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => navigate(`/assessments/${assessmentId}/sessions/${session.id}/monitor`)}
-            >
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => navigate(`/assessments/${assessmentId}/sessions/${session.id}/monitor`)}>
               <Eye className="h-3 w-3 mr-1" /> Monitor
             </Button>
           )}
           {isEnded && session.end_reason !== "error" && (
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-7 px-2 text-xs"
-              onClick={() => navigate(`/assessments/${assessmentId}/sessions/${session.id}/portfolio`)}
-            >
+            <Button variant="outline" size="sm" className="h-7 px-2 text-xs" onClick={() => navigate(`/assessments/${assessmentId}/sessions/${session.id}/portfolio`)}>
               Results
             </Button>
           )}
@@ -139,16 +130,16 @@ export default function AssessmentInvitePage() {
   }, [id]);
 
   useEffect(() => {
-    Promise.all([
-      assessmentsApi.get(Number(id)),
-      assessmentsApi.getSessions(Number(id)),
-    ]).then(([aRes, sRes]) => {
-      setAssessment(aRes.data.assessment);
-      setSessions(sRes.data.sessions);
-    }).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([assessmentsApi.get(Number(id)), assessmentsApi.getSessions(Number(id))])
+      .then(([aRes, sRes]) => {
+        setAssessment(aRes.data.assessment);
+        setSessions(sRes.data.sessions);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
   }, [id]);
 
-  // Poll while any session is live or pending
+  // Poll while any session is not ended
   useEffect(() => {
     const hasActive = sessions.some((s) => s.status !== "ended");
     if (!hasActive) return;
@@ -164,7 +155,6 @@ export default function AssessmentInvitePage() {
   const handleInviteCandidate = async () => {
     setCreatingSession(true);
     setShowInviteDialog(false);
-    setNewSession(null);
     try {
       const res = await assessmentsApi.createSession(Number(id), candidateNameInput.trim() || undefined);
       const created = res.data.session;
@@ -175,9 +165,9 @@ export default function AssessmentInvitePage() {
     }
   };
 
-  const copyLink = (session: Session, id: number) => {
-    navigator.clipboard.writeText(session.invite_url);
-    setCopiedId(id);
+  const copyLink = (sessionObj: Session, sid: number) => {
+    navigator.clipboard.writeText(sessionObj.invite_url);
+    setCopiedId(sid);
     setTimeout(() => setCopiedId(null), 2000);
   };
 
@@ -190,7 +180,7 @@ export default function AssessmentInvitePage() {
 
   if (loading) {
     return (
-      <div className="max-w-2xl mx-auto space-y-4">
+      <div className="max-w-2xl mx-auto space-y-4 pt-8">
         <Skeleton className="h-8 w-64" />
         <Skeleton className="h-32 w-full" />
         <Skeleton className="h-48 w-full" />
@@ -199,7 +189,7 @@ export default function AssessmentInvitePage() {
   }
 
   return (
-    <div className="max-w-2xl mx-auto space-y-6">
+    <div className="max-w-2xl mx-auto space-y-6 py-8">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div className="flex items-center gap-2">
@@ -207,28 +197,27 @@ export default function AssessmentInvitePage() {
             <ArrowLeft className="h-4 w-4" />
           </Link>
           <div>
-            <h1 className="text-lg font-semibold">{assessment?.name ?? "—"}</h1>
-            <div className="flex items-center gap-1.5 text-xs text-muted-foreground mt-0.5">
+            <h1 className="text-lg font-semibold text-slate-900">{assessment?.name ?? "—"}</h1>
+            <div className="flex items-center gap-1.5 text-xs text-slate-500 mt-0.5">
               <Clock className="h-3 w-3" />
               {assessment?.time_limit_min} min · {assessment?.skills?.length ?? 0} skills
             </div>
           </div>
         </div>
-
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate(`/assessments/${id}/edit`)}>
             <Pencil className="h-3.5 w-3.5 mr-1.5" /> Edit
           </Button>
-          <Button size="sm" onClick={openInviteDialog} disabled={creatingSession}>
+          <Button size="sm" onClick={openInviteDialog} disabled={creatingSession} className="gradient-teal text-white">
             <Plus className="h-3.5 w-3.5 mr-1.5" />
-            {creatingSession ? "Creating..." : "Invite Candidate"}
+            {creatingSession ? "Creating…" : "Invite Candidate"}
           </Button>
         </div>
       </div>
 
       {/* Invite candidate dialog */}
       <Dialog open={showInviteDialog} onOpenChange={setShowInviteDialog}>
-        <DialogContent className="sm:max-w-sm">
+        <DialogContent className="sm:max-w-sm glass-panel">
           <DialogHeader>
             <DialogTitle>Invite Candidate</DialogTitle>
           </DialogHeader>
@@ -242,7 +231,7 @@ export default function AssessmentInvitePage() {
               onKeyDown={(e) => e.key === "Enter" && handleInviteCandidate()}
               autoFocus
             />
-            <p className="text-xs text-muted-foreground">Optional — helps you identify this session later.</p>
+            <p className="text-xs text-slate-500">Optional – helps you identify this session later.</p>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setShowInviteDialog(false)}>Cancel</Button>
@@ -253,7 +242,7 @@ export default function AssessmentInvitePage() {
 
       {/* Newly created session invite link */}
       {newSession && (
-        <Card className="border-primary/30 bg-primary/5">
+        <Card className="border-primary/30 bg-primary/5 glass-panel">
           <CardContent className="pt-4 space-y-2">
             <p className="text-sm font-medium">
               {newSession.candidate_name
@@ -261,9 +250,7 @@ export default function AssessmentInvitePage() {
                 : <>New invite link ready — share with your candidate:</>}
             </p>
             <div className="flex items-center gap-2 border rounded-md px-3 py-2 bg-white">
-              <span className="flex-1 text-sm font-mono truncate text-muted-foreground">
-                {newSession.invite_url}
-              </span>
+              <span className="flex-1 text-sm font-mono truncate text-slate-500">{newSession.invite_url}</span>
             </div>
             <Button variant="outline" size="sm" onClick={copyNewSessionLink} className="w-full">
               {newSessionCopied ? (
@@ -279,28 +266,21 @@ export default function AssessmentInvitePage() {
       <Separator />
 
       {/* Sessions list */}
-      <div className="space-y-2">
+      <div className="space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold">
-            Candidates
-            {sessions.length > 0 && (
-              <span className="ml-1.5 text-muted-foreground font-normal">({sessions.length})</span>
-            )}
-          </h2>
+          <h2 className="text-sm font-semibold text-slate-900">Candidates{sessions.length > 0 && <span className="ml-1.5 text-slate-500 font-normal">({sessions.length})</span>}</h2>
         </div>
 
         {sessions.length === 0 ? (
-          <div className="border rounded-lg p-10 text-center space-y-3">
-            <UserRound className="h-8 w-8 text-muted-foreground mx-auto" />
+          <div className="border rounded-lg p-10 text-center space-y-3 glass-panel">
+            <UserRound className="h-8 w-8 text-slate-400 mx-auto" />
             <div>
-              <p className="text-sm font-medium">No candidates yet</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Click "Invite Candidate" to generate an interview link.
-              </p>
+              <p className="text-sm font-medium text-slate-800">No candidates yet</p>
+              <p className="text-xs text-slate-500 mt-1">Click “Invite Candidate” to generate an interview link.</p>
             </div>
           </div>
         ) : (
-          <Card>
+          <Card className="glass-panel">
             <CardContent className="p-0 divide-y">
               {sessions.map((session, i) => (
                 <SessionRow
@@ -325,13 +305,13 @@ export default function AssessmentInvitePage() {
         <>
           <Separator />
           <div className="space-y-2">
-            <h2 className="text-sm font-semibold">Skills assessed</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Skills assessed</h2>
             <ul className="space-y-1">
               {assessment.skills.map((s) => (
-                <li key={s.id ?? s.skill_label} className="flex items-center gap-2 text-sm text-muted-foreground">
+                <li key={s.id ?? s.skill_label} className="flex items-center gap-2 text-sm text-slate-500">
                   <span>•</span>
                   <span>{s.skill_label}</span>
-                  <span className="text-xs">(expected {LEVEL_LABELS[s.expected_level]})</span>
+                  <span className="text-xs text-slate-400">(expected {LEVEL_LABELS[s.expected_level]})</span>
                 </li>
               ))}
             </ul>
